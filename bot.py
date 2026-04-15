@@ -18,7 +18,7 @@ from telegram import (
 )
 from telegram.request import HTTPXRequest
 
-from tickets import TICKET_TEXTS
+from questions import QUESTION_TEXTS
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -79,7 +79,7 @@ def split_telegram_message(text: str, max_len: int = TG_MAX_MESSAGE) -> list[str
     return parts
 
 
-async def send_ticket_reply(
+async def send_question_reply(
     query,
     context: ContextTypes.DEFAULT_TYPE,
     text: str,
@@ -98,8 +98,8 @@ def greeting_text(first_name: Optional[str]) -> str:
     return f"Привет, {name}! 👋"
 
 
-def tickets_prompt_text() -> str:
-    return "Выбери номер билета:"
+def questions_prompt_text() -> str:
+    return "Выбери номер вопроса (1–40):"
 
 
 def bottom_start_keyboard() -> ReplyKeyboardMarkup:
@@ -110,23 +110,23 @@ def bottom_start_keyboard() -> ReplyKeyboardMarkup:
     )
 
 
-TICKET_COUNT = 45
-TICKETS_PER_ROW = 5
+QUESTION_COUNT = 40
+QUESTIONS_PER_ROW = 5
 
 
-def ticket_keyboard() -> InlineKeyboardMarkup:
+def question_keyboard() -> InlineKeyboardMarkup:
     rows = []
-    for row_start in range(0, TICKET_COUNT, TICKETS_PER_ROW):
+    for row_start in range(0, QUESTION_COUNT, QUESTIONS_PER_ROW):
         row = [
-            InlineKeyboardButton(str(i), callback_data=f"ticket_{i}")
-            for i in range(row_start + 1, min(row_start + 1 + TICKETS_PER_ROW, TICKET_COUNT + 1))
+            InlineKeyboardButton(str(i), callback_data=f"question_{i}")
+            for i in range(row_start + 1, min(row_start + 1 + QUESTIONS_PER_ROW, QUESTION_COUNT + 1))
         ]
         rows.append(row)
     return InlineKeyboardMarkup(rows)
 
 
 async def send_main_menu(update: Update) -> None:
-    """Два сообщения: reply-клавиатура с /start и inline-сетка билетов (в одном сообщении их совместить нельзя)."""
+    """Два сообщения: reply-клавиатура с /start и inline-сетка вопросов (в одном сообщении их совместить нельзя)."""
     user = update.effective_user
     name = user.first_name if user else None
     await update.message.reply_text(
@@ -134,8 +134,8 @@ async def send_main_menu(update: Update) -> None:
         reply_markup=bottom_start_keyboard(),
     )
     await update.message.reply_text(
-        tickets_prompt_text(),
-        reply_markup=ticket_keyboard(),
+        questions_prompt_text(),
+        reply_markup=question_keyboard(),
     )
 
 
@@ -143,19 +143,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await send_main_menu(update)
 
 
-async def on_ticket_click(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def on_question_click(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if not query or not query.data:
         return
 
-    suffix = query.data.removeprefix("ticket_")
-    body = TICKET_TEXTS.get(suffix)
+    suffix = query.data.removeprefix("question_")
+    body = QUESTION_TEXTS.get(suffix)
     if body:
         await query.answer()
-        await send_ticket_reply(query, context, body)
+        await send_question_reply(query, context, body)
         return
 
-    await query.answer("Билет не найден.")
+    await query.answer("Вопрос не найден.")
 
 
 async def any_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -175,7 +175,7 @@ def build_application(token: str) -> Application:
         .build()
     )
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(on_ticket_click, pattern=r"^ticket_\d+$"))
+    app.add_handler(CallbackQueryHandler(on_question_click, pattern=r"^question_\d+$"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, any_message))
     return app
 
